@@ -28,7 +28,7 @@ async def predict(text: schemas.Text):
 
 @router.post("/predict_batch")
 async def predict_batch(batch: schemas.RequestBatch):
-    """Получить предсказание модели по нескольким текстам"""
+    """Получить предсказание модели по нескольким текстам (список)"""
     response = {}
     lst = batch.request
     try:
