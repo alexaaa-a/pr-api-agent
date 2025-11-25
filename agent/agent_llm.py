@@ -3,7 +3,11 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 from langchain.tools import tool
 from langgraph.graph import StateGraph, END
 from typing import TypedDict
+from langfuse.langchain import CallbackHandler
+from dotenv import load_dotenv
 
+
+load_dotenv()
 
 model_id = "Qwen/Qwen3-0.6B"
 tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -18,7 +22,12 @@ llm_pipeline = pipeline(
     eos_token_id=tokenizer.eos_token_id
 )
 
-llm = HuggingFacePipeline(pipeline=llm_pipeline)
+langfuse_handler = CallbackHandler()
+
+llm = HuggingFacePipeline(
+    pipeline=llm_pipeline,
+    callbacks=[langfuse_handler],
+)
 
 
 class SimpleLLMState(TypedDict):
@@ -31,10 +40,6 @@ def math_solver(expression: str) -> str:
     """Решает арифметику через LLM"""
     prompt = f"Calculate the result of this expression: {expression}. Give only the answer and nothing more."
     answer = llm.invoke(prompt).strip()
-    lines = answer.split("\n")[1:]
-    for line in lines:
-        if 'answer' in line:
-            return line
     return answer
 
 @tool
@@ -42,10 +47,6 @@ def translator(text: str) -> str:
     """Переводчик через LLM"""
     prompt = f"Translate the text into German: '{text}'. Just give me the translated text"
     answer = llm.invoke(prompt).strip()
-    lines = answer.split("\n")[1:]
-    for line in range(len(lines)):
-        if 'answer' or 'transl' in lines[line]:
-            return lines[line + 1]
     return answer
 
 
@@ -76,5 +77,8 @@ while True:
     user_input = input("\nВведите выражение или текст (или 'exit'): ")
     if user_input.lower() == "exit":
         break
-    result = agent.invoke({"user_input": user_input})
+    result = agent.invoke(
+        {"user_input": user_input},
+        config={"callbacks": [langfuse_handler]}
+    )
     print("✅ Result:", result["result"])
